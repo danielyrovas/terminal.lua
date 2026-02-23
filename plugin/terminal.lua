@@ -14,9 +14,19 @@ vim.api.nvim_create_autocmd("TermOpen", {
             buffer = buf,
             once = true,
             callback = function()
+                if not vim.api.nvim_buf_is_valid(buf) then return end
+
+                local win = vim.fn.bufwinid(buf)
+                if win == -1 then return end
+
+                local ok, config = pcall(vim.api.nvim_win_get_config, win)
+                if not ok or not config then return end
+
+                local is_floating = config.relative ~= ""
+
                 local terminal = require "terminal"
-                if terminal.last_terminal_buf() == buf then
-                    terminal.set_last_terminal_id(nil)
+                if terminal.last_terminal_buf { float = is_floating } == buf then
+                    terminal.set_last_terminal_id(nil, is_floating)
                 end
 
                 vim.schedule(
