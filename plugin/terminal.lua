@@ -14,6 +14,11 @@ vim.api.nvim_create_autocmd("TermOpen", {
             buffer = buf,
             once = true,
             callback = function()
+                local terminal = require "terminal"
+                if terminal.last_terminal_buf() == buf then
+                    terminal.set_last_terminal_id(nil)
+                end
+
                 vim.schedule(
                     function() pcall(vim.api.nvim_buf_delete, buf, { force = true }) end
                 )
