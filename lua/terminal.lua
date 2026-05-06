@@ -19,8 +19,9 @@ end
 
 M.last_terminal_buf = function(opts)
     opts = opts or {}
-    return opts.float and terminals[last_float_terminal_id].buf
-        or terminals[last_terminal_id].buf
+    local id = opts.float and last_float_terminal_id or last_terminal_id
+    local term = terminals[id]
+    return term and term.buf or nil
 end
 
 M.set_last_terminal_id = function(id, float)
