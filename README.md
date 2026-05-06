@@ -6,6 +6,8 @@ Adds several niceties to the neovim's `:terminal`:
 - double escape to exit insert mode
 - automatically enter insert mode
 - ctrl j/k/l/h mappings to navigate
+- `q` in normal mode to close
+- automatically close when the process exits
 - toggle terminals via keybinds
 
 # Installation
@@ -15,55 +17,29 @@ Adds several niceties to the neovim's `:terminal`:
 
 ```lua
 return {
-    url = "https://tangled.org/danielyrovas.tngl.sh/terminal.lua",
+    "danielyrovas/terminal.lua", -- or url = "https://tangled.org/danielyrovas.tngl.sh/terminal.lua",
     event = { "TermOpen", "VeryLazy" },
-    keys = function()
-        local keys = {}
-
-        for i = 1, 9 do
-            for float, key in pairs { [false] = "<c-\\>", [true] = "<c-,>" } do
-                table.insert(keys, {
-                    i .. key,
-                    function()
-                        require("terminal").toggle {
-                            id = tostring(i),
-                            float = float,
-                        }
-                    end,
-                    mode = { "n", "t" },
-                    desc = string.format(
-                        "Toggle %s term %d",
-                        float and "float" or "split",
-                        i
-                    ),
-                })
-            end
-        end
-
-        vim.list_extend(keys, {
-            {
-                "<c-\\>",
-                function() require("terminal").toggle_last() end,
-                mode = { "n", "t" },
-                desc = "Toggle split term",
-            },
-            {
-                "<c-,>",
-                function() require("terminal").toggle_last { float = true } end,
-                mode = { "n", "t" },
-                desc = "Toggle float term",
-            },
-            {
-                "<leader>gi",
-                function()
-                    require("terminal").toggle { cmd = "jjui", float = true }
-                end,
-                desc = "Toggle floating jjui",
-            },
-        })
-
-        return keys
-    end,
+    keys = {
+        -- `3<c-\>` (normal mode) or `3` then `<c-\>` (terminal mode) toggles terminal 3,
+        -- without a count the most recently used terminal is toggled
+        {
+            "<c-\\>",
+            function() require("terminal").toggle_count() end,
+            mode = { "n", "t" },
+            desc = "Toggle split term (selects recent or [count])",
+        },
+        {
+            "<c-,>",
+            function() require("terminal").toggle_count { float = true } end,
+            mode = { "n", "t" },
+            desc = "Toggle float term (selects recent or [count])",
+        },
+        {
+            "<leader>gi",
+            function() require("terminal").toggle { cmd = "jjui", float = true } end,
+            desc = "Toggle floating jjui",
+        },
+    },
 }
 ```
 
@@ -79,23 +55,13 @@ return {
 Then add keybinds in your `init.lua`:
 
 ```lua
--- n<c-\> opens split terminal n, n<c-,> opens float terminal n (where n is 1–9)
-for i = 1, 9 do
-    for float, key in pairs { [false] = "<c-\\>", [true] = "<c-,>" } do
-        vim.keymap.set({ "n", "t" }, i .. key, function()
-            require("terminal").toggle { id = tostring(i), float = float }
-        end, { desc = string.format("Toggle %s term %d", float and "float" or "split", i) })
-    end
-end
-
--- Toggle most recently used split / float terminal
 vim.keymap.set({ "n", "t" }, "<c-\\>", function()
-    require("terminal").toggle_last()
-end, { desc = "Toggle split term" })
+    require("terminal").toggle_count()
+end, { desc = "Toggle split term (selects recent or [count])" })
 
 vim.keymap.set({ "n", "t" }, "<c-,>", function()
-    require("terminal").toggle_last { float = true }
-end, { desc = "Toggle float term" })
+    require("terminal").toggle_count { float = true }
+end, { desc = "Toggle float term (selects recent or [count])" })
 
 -- Example: open a specific command in a floating terminal
 vim.keymap.set("n", "<leader>gi", function()

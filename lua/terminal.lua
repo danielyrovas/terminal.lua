@@ -122,4 +122,38 @@ M.toggle_last = function(opts)
     M.toggle(opts)
 end
 
+local pending = { digit = nil, at = 0 }
+
+--- Record a digit typed in terminal mode, or clear it with nil
+--- @param digit string?
+M.set_pending_digit = function(digit)
+    pending.digit, pending.at = digit, vim.uv.hrtime()
+end
+
+--- Consume a digit just typed into the terminal, erasing the echoed character
+--- @return string? digit
+local function take_digit()
+    local digit = pending.digit
+    pending.digit = nil
+    local elapsed_ms = (vim.uv.hrtime() - pending.at) / 1e6
+    if not digit or elapsed_ms > vim.o.timeoutlen then return nil end
+    local chan = vim.bo.channel
+    -- the shell already echoed the digit, rub it out (DEL, the usual pty erase)
+    if chan > 0 then pcall(vim.api.nvim_chan_send, chan, "\127") end
+    return digit
+end
+
+--- Toggle the terminal selected by a count: `3<c-\>` in normal mode or `3`
+--- typed immediately before the key in terminal mode. Without a count, the
+--- last used terminal is toggled.
+M.toggle_count = function(opts)
+    opts = opts or {}
+    local id = vim.v.count > 0 and tostring(vim.v.count) or take_digit()
+    if id then
+        M.toggle { id = id, float = opts.float }
+    else
+        M.toggle_last { float = opts.float }
+    end
+end
+
 return M

@@ -69,3 +69,36 @@ vim.api.nvim_create_autocmd("WinEnter", {
         vim.cmd.startinsert()
     end,
 })
+
+-- Remember the last digit typed in terminal mode. Digits can't be mapped in
+-- terminal mode without delaying every keystroke by 'timeoutlen', so watch the
+-- raw input instead and treat a recent digit as a count for the toggle keys
+-- (see `toggle_count` in lua/terminal.lua). The watcher only runs while in
+-- terminal mode.
+local digit_ns = vim.api.nvim_create_namespace "terminal_digit"
+
+vim.api.nvim_create_autocmd("TermEnter", {
+    callback = function()
+        -- Only printable single characters are considered: the toggle keys
+        -- themselves arrive as control/escape sequences (and on_key fires
+        -- *before* the mapping runs), so anything non printable has to be left
+        -- alone or it would clear the digit it is meant to consume.
+        vim.on_key(function(_, typed)
+            pcall(function()
+                if typed == nil or typed == "" then return end
+                local byte = typed:byte()
+                local printable = #typed == 1 and byte >= 0x20 and byte < 0x7f
+                if not printable then return end
+
+                require("terminal").set_pending_digit(typed:match "^%d$")
+            end)
+        end, digit_ns)
+    end,
+})
+
+vim.api.nvim_create_autocmd("TermLeave", {
+    callback = function()
+        vim.on_key(nil, digit_ns)
+        require("terminal").set_pending_digit(nil)
+    end,
+})
