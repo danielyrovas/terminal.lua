@@ -1,0 +1,43 @@
+[env]
+_.path = ["bin"]
+
+[tools]
+neovim = "latest"
+stylua = "latest"
+lua-language-server = "latest"
+typos = "latest"
+taplo = "latest"
+
+[task_config]
+includes = ["tasks"]
+
+[tasks.format]
+description = ":format: lua"
+run = "stylua ."
+
+[tasks.lint]
+description = ":lint: all"
+depends = ["lint:*"]
+
+[tasks."lint:style"]
+description = ":lint: lua style"
+run = "stylua --check ."
+
+[tasks."lint:types"]
+description = ":lint: lua types"
+run = """
+VIMRUNTIME="$(nvim --clean --headless -c 'lua io.write(vim.env.VIMRUNTIME)' -c 'qa')" \
+  lua-language-server --check . --checklevel=Warning
+"""
+
+[tasks."lint:typos"]
+description = ":lint: spelling"
+run = "typos"
+
+[tasks."lint:toml"]
+description = ":lint: toml"
+run = "taplo fmt --check"
+
+[tasks.pre-push]
+description = ":check: before push"
+depends = ["lint"]
