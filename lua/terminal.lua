@@ -38,6 +38,8 @@ M.toggle = function(opts)
     local float = opts.float or false
     local term = terminals[id] or { buf = nil, win = nil, float = opts.float, cmd = opts.cmd }
 
+    -- Keep the source window's working directory before switching to the terminal window.
+    local cwd = vim.fn.getcwd()
     local current_buf = vim.api.nvim_get_current_buf()
     local current_win = vim.fn.bufwinid(current_buf)
     local current_float = vim.api.nvim_win_get_config(current_win).relative ~= ""
@@ -93,15 +95,17 @@ M.toggle = function(opts)
         vim.cmd "vsplit"
         term.win = vim.api.nvim_get_current_win()
         vim.api.nvim_win_set_buf(term.win, term.buf)
+        -- vsplit copies window options from the editor window, and TermOpen
+        -- does not fire again for an existing terminal buffer
+        vim.wo[term.win].number = false
+        vim.wo[term.win].relativenumber = false
+        vim.wo[term.win].signcolumn = "no"
+        vim.wo[term.win].foldcolumn = "0"
     end
 
     -- Start terminal with command if new buffer
     if vim.fn.getbufvar(term.buf, "&buftype") ~= "terminal" then
-        if opts.cmd then
-            vim.cmd.terminal(opts.cmd)
-        else
-            vim.cmd.terminal()
-        end
+        vim.fn.jobstart(opts.cmd or vim.fn.split(vim.o.shell), { term = true, cwd = cwd })
     end
 
     vim.cmd "startinsert"
