@@ -126,6 +126,55 @@ M.toggle_last = function(opts)
     M.toggle(opts)
 end
 
+--- @return integer? win
+local function editor_win()
+    local function usable(win)
+        return win ~= 0
+            and vim.api.nvim_win_get_config(win).relative == ""
+            and vim.bo[vim.api.nvim_win_get_buf(win)].buftype == ""
+    end
+    for _, win in ipairs {
+        vim.api.nvim_get_current_win(),
+        vim.fn.win_getid(vim.fn.winnr "#"),
+    } do
+        if usable(win) then return win end
+    end
+    for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+        if usable(win) then return win end
+    end
+end
+
+--- Open files from a job inside a terminal, in this nvim, not a nested one:
+--- `nvim --server "$NVIM" --remote-expr "v:lua.require'terminal'.edit(['a'])"`
+--- A float terminal closes; a split terminal stays open next to the file.
+--- @param files string[] absolute paths
+M.edit = function(files)
+    vim.schedule(function()
+        local win = vim.api.nvim_get_current_win()
+        local is_terminal = vim.bo[vim.api.nvim_win_get_buf(win)].buftype == "terminal"
+        if is_terminal and vim.api.nvim_win_get_config(win).relative ~= "" then
+            vim.api.nvim_win_close(win, true)
+        end
+
+        local target = editor_win()
+        if target then
+            vim.api.nvim_set_current_win(target)
+        else
+            vim.cmd "leftabove vnew"
+        end
+        vim.cmd.stopinsert()
+
+        for i, file in ipairs(files) do
+            if i == 1 then
+                vim.cmd.edit(vim.fn.fnameescape(file))
+            else
+                vim.cmd.badd(vim.fn.fnameescape(file))
+            end
+        end
+    end)
+    return ""
+end
+
 local pending = { digit = nil, at = 0 }
 
 --- Record a digit typed in terminal mode, or clear it with nil
